@@ -48,26 +48,32 @@
         btn.style.transform = 'scale(1)';
       });
 
+      // Forçar flex-wrap no pai para os novos elementos quebrarem linha
+      var parent = form.parentElement;
+      parent.style.flexWrap = 'wrap';
+
       // Badge de urgência acima do form
       var urgency = document.createElement('div');
       urgency.className = 'ab-test-urgency';
+      urgency.style.cssText = 'width:100%;flex-basis:100%;order:-1;';
       urgency.innerHTML =
         '<div style="background:#FFF3CD;border:1px solid #FFE69C;' +
         'border-radius:6px;padding:8px 12px;margin-bottom:12px;' +
         'text-align:center;font-size:13px;color:#856404;">' +
         '<strong>Últimas unidades</strong> — Estoque limitado para envio imediato' +
         '</div>';
-      form.parentElement.insertBefore(urgency, form);
+      parent.insertBefore(urgency, form);
 
       // Micro-copy de garantia abaixo do form
       var microCopy = document.createElement('div');
       microCopy.className = 'ab-test-microcopy';
+      microCopy.style.cssText = 'width:100%;flex-basis:100%;order:9999;';
       microCopy.innerHTML =
         '<div style="text-align:center;margin-top:10px;' +
         'font-size:13px;color:#666;">' +
         '\uD83D\uDD12 Satisfação garantida por 30 dias ou seu dinheiro de volta' +
         '</div>';
-      form.parentElement.insertBefore(microCopy, form.nextSibling);
+      parent.insertBefore(microCopy, form.nextSibling);
     });
   }
 
