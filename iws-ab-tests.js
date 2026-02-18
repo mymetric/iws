@@ -31,6 +31,9 @@
   // =============================================================
   function ctaBeneficio() {
     waitFor('[id^="ProductSubmitButton"]', function (btn) {
+      var form = btn.closest('form');
+      if (!form) return;
+
       // Alterar texto do botão
       btn.textContent = 'Quero dormir melhor';
 
@@ -45,17 +48,7 @@
         btn.style.transform = 'scale(1)';
       });
 
-      // Micro-copy de garantia abaixo do botão
-      var microCopy = document.createElement('div');
-      microCopy.className = 'ab-test-microcopy';
-      microCopy.innerHTML =
-        '<span style="display:block;text-align:center;margin-top:10px;' +
-        'font-size:13px;color:#666;">' +
-        '\uD83D\uDD12 Satisfação garantida por 30 dias ou seu dinheiro de volta' +
-        '</span>';
-      btn.parentElement.insertBefore(microCopy, btn.nextSibling);
-
-      // Badge de urgência acima do botão
+      // Badge de urgência acima do form
       var urgency = document.createElement('div');
       urgency.className = 'ab-test-urgency';
       urgency.innerHTML =
@@ -64,7 +57,17 @@
         'text-align:center;font-size:13px;color:#856404;">' +
         '<strong>Últimas unidades</strong> — Estoque limitado para envio imediato' +
         '</div>';
-      btn.parentElement.insertBefore(urgency, btn);
+      form.parentElement.insertBefore(urgency, form);
+
+      // Micro-copy de garantia abaixo do form
+      var microCopy = document.createElement('div');
+      microCopy.className = 'ab-test-microcopy';
+      microCopy.innerHTML =
+        '<div style="text-align:center;margin-top:10px;' +
+        'font-size:13px;color:#666;">' +
+        '\uD83D\uDD12 Satisfação garantida por 30 dias ou seu dinheiro de volta' +
+        '</div>';
+      form.parentElement.insertBefore(microCopy, form.nextSibling);
     });
   }
 
