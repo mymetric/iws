@@ -57,18 +57,6 @@
       var parent = form.parentElement;
       parent.style.flexWrap = 'wrap';
 
-      // Badge de urgência acima do form
-      var urgency = document.createElement('div');
-      urgency.className = 'ab-test-urgency';
-      urgency.style.cssText = 'width:100%;flex-basis:100%;order:-1;';
-      urgency.innerHTML =
-        '<div style="background:#FFF3CD;border:1px solid #FFE69C;' +
-        'border-radius:6px;padding:8px 12px;margin-bottom:12px;' +
-        'text-align:center;font-size:13px;color:#856404;">' +
-        '<strong>Últimas unidades</strong> — Estoque limitado para envio imediato' +
-        '</div>';
-      parent.insertBefore(urgency, form);
-
       // Micro-copy de garantia abaixo do form
       var microCopy = document.createElement('div');
       microCopy.className = 'ab-test-microcopy';
