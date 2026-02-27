@@ -34,8 +34,13 @@
       var form = btn.closest('form');
       if (!form) return;
 
-      // Alterar texto do botão
-      btn.textContent = 'Quero dormir melhor';
+      // Alterar texto do botão (preservar estrutura interna para o theme JS)
+      var btnSpan = btn.querySelector('span');
+      if (btnSpan) {
+        btnSpan.textContent = 'Quero dormir melhor';
+      } else {
+        btn.textContent = 'Quero dormir melhor';
+      }
 
       // Estilizar botão
       btn.style.fontSize = '18px';
