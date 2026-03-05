@@ -64,7 +64,7 @@
       microCopy.innerHTML =
         '<div style="text-align:center;margin-top:10px;' +
         'font-size:13px;color:#666;">' +
-        '\uD83D\uDD12 Satisfação garantida por 30 dias ou seu dinheiro de volta' +
+        '\uD83D\uDD12 Satisfação garantida por 30 dias — troque por outro produto' +
         '</div>';
       parent.insertBefore(microCopy, form.nextSibling);
     });
@@ -166,7 +166,7 @@
       {
         icon: '\uD83D\uDEE1\uFE0F',
         title: '30 dias de teste grátis',
-        desc: 'Não gostou? Devolvemos seu dinheiro, sem burocracia',
+        desc: 'Não gostou? Troque por outro produto, sem burocracia',
       },
       {
         icon: '\uD83D\uDE9A',
