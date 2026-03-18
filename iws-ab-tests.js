@@ -6,6 +6,7 @@
  *   window.IWS_AB.ctaBeneficio();
  *   window.IWS_AB.socialProof();
  *   window.IWS_AB.checklistBeneficios();
+ *   window.IWS_AB.pricingTest();
  */
 
 (function () {
@@ -234,11 +235,179 @@
   }
 
   // =============================================================
+  // TESTE 4: Pricing Test — Preços de controle (sem desconto)
+  // =============================================================
+  function pricingTest() {
+    var VARIANTES_CONTROLE = {
+      'travesseiro-snow': {
+        variant: '49716078018838',
+        preco: 'R$ 419,90',
+        preco_des: null,
+        parcelas: '4x de R$ 104,98'
+      },
+      'kit-2-travesseiros-iws-snow': {
+        variant: '10441630679318',
+        preco: 'R$ 752,80',
+        preco_des: 'R$376,40 cada',
+        parcelas: '4x de R$ 188,20'
+      },
+      'kit-4-travesseiros-iws-snow': {
+        variant: '51109274288406',
+        preco: 'R$ 1.416,80',
+        preco_des: 'R$354,20 cada',
+        parcelas: '4x de R$ 354,20'
+      }
+    };
+
+    // --- Interceptar fetch para /cart/add ---
+    var _originalFetch = window.fetch;
+    window.fetch = function (url, options) {
+      var urlStr = typeof url === 'string' ? url : (url && url.url) || '';
+
+      if (urlStr.indexOf('/cart/add') !== -1 && options && options.body) {
+        var fd = null;
+        if (options.body instanceof FormData) {
+          fd = options.body;
+        }
+        if (fd) {
+          var sectionsUrl = fd.get('sections_url') || '';
+          var handle = extrairHandle(sectionsUrl);
+          var config = handle ? VARIANTES_CONTROLE[handle] : null;
+          if (config) {
+            fd.set('id', config.variant);
+          }
+        }
+      }
+
+      return _originalFetch.apply(this, [url, options]);
+    };
+
+    // --- Interceptar XHR para /cart/add (fallback) ---
+    var _originalXHRSend = XMLHttpRequest.prototype.send;
+    XMLHttpRequest.prototype.send = function (body) {
+      if (this._pav_url && this._pav_url.indexOf('/cart/add') !== -1 && body instanceof FormData) {
+        var sectionsUrl = body.get('sections_url') || '';
+        var handle = extrairHandle(sectionsUrl);
+        var config = handle ? VARIANTES_CONTROLE[handle] : null;
+        if (config) {
+          body.set('id', config.variant);
+        }
+      }
+      return _originalXHRSend.apply(this, [body]);
+    };
+
+    var _originalXHROpen = XMLHttpRequest.prototype.open;
+    XMLHttpRequest.prototype.open = function (method, url) {
+      this._pav_url = url;
+      return _originalXHROpen.apply(this, arguments);
+    };
+
+    function extrairHandle(url) {
+      if (!url) return null;
+      var match = url.match(/\/products\/([^?&#/]+)/);
+      return match ? match[1] : null;
+    }
+
+    // --- Interceptar variant ID nos forms de /cart/add ---
+    function interceptForms() {
+      var handle = extrairHandle(window.location.pathname);
+      var config = handle ? VARIANTES_CONTROLE[handle] : null;
+      if (!config) return;
+
+      var forms = document.querySelectorAll('form[action*="/cart/add"]');
+      for (var i = 0; i < forms.length; i++) {
+        var input = forms[i].querySelector('input[name="id"]');
+        if (input) {
+          input.value = config.variant;
+        }
+      }
+    }
+
+    // --- Atualizar preço principal da página de produto ---
+    function atualizarPreçoPrincipal() {
+      var handle = extrairHandle(window.location.pathname);
+      var config = handle ? VARIANTES_CONTROLE[handle] : null;
+      if (!config) return;
+
+      // Container principal de preço
+      var priceContainer = document.querySelector('.price.price--large');
+      if (!priceContainer) return;
+
+      // Remover classes de promoção
+      priceContainer.classList.remove('price--on-sale', 'price--show-badge');
+
+      // Esconder seção de sale (compare-at + sale price)
+      var saleDiv = priceContainer.querySelector('.price__sale');
+      if (saleDiv) saleDiv.style.display = 'none';
+
+      // Mostrar seção regular com novo preço
+      var regularDiv = priceContainer.querySelector('.price__regular');
+      if (regularDiv) {
+        regularDiv.style.display = '';
+        var priceSpan = regularDiv.querySelector('.price-item--regular');
+        if (priceSpan) priceSpan.textContent = config.preco;
+      }
+
+      // Esconder badge de desconto
+      var badges = priceContainer.querySelectorAll('.badge.price__badge-sale');
+      for (var i = 0; i < badges.length; i++) {
+        badges[i].style.display = 'none';
+      }
+
+      // Atualizar parcelador
+      var parcelator = document.querySelector('#parcelator');
+      if (parcelator && config.parcelas) {
+        var pEl = parcelator.querySelector('p');
+        if (pEl) {
+          // Formato original: 4x<strong> </strong>de <strong>R$ XX,XX</strong>
+          var parts = config.parcelas.match(/^(\dx)\s+de\s+(.+)$/);
+          if (parts) {
+            pEl.innerHTML = parts[1] + '<strong> </strong>de <strong>' + parts[2] + '</strong>';
+          }
+        }
+      }
+    }
+
+    // --- Atualizar cards PAV (1und, kit-2, kit-4) ---
+    function aplicarVariantes() {
+      var cards = document.querySelectorAll('.pav-content[data-handle]');
+      for (var i = 0; i < cards.length; i++) {
+        var card = cards[i];
+        var handle = card.getAttribute('data-handle');
+        var config = VARIANTES_CONTROLE[handle];
+        if (!config) continue;
+
+        var link = card.querySelector('.pav-prd-link');
+        if (link) {
+          link.href = '/products/' + handle + '?variant=' + config.variant;
+        }
+
+        var elPreco = card.querySelector('.pav-price');
+        if (elPreco) elPreco.textContent = config.preco;
+
+        var elDes = card.querySelector('.pav-des');
+        if (elDes && config.preco_des) elDes.textContent = config.preco_des;
+      }
+    }
+
+    // Executar imediatamente e em polling para cobrir renderização dinâmica
+    function aplicarTudo() {
+      atualizarPreçoPrincipal();
+      aplicarVariantes();
+      interceptForms();
+    }
+
+    aplicarTudo();
+    setInterval(aplicarTudo, 800);
+  }
+
+  // =============================================================
   // Expor funções globalmente
   // =============================================================
   window.IWS_AB = {
     ctaBeneficio: ctaBeneficio,
     socialProof: socialProof,
     checklistBeneficios: checklistBeneficios,
+    pricingTest: pricingTest,
   };
 })();
