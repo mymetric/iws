@@ -240,7 +240,7 @@
   function pricingTest() {
     var VARIANTES_CONTROLE = {
       'travesseiro-snow': {
-        variant: '49716078018838',
+        variant: '51094812852502',
         preco: 'R$ 419,90',
         preco_des: null,
         parcelas: '4x de R$ 104,98'
