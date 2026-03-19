@@ -243,19 +243,22 @@
         variant: '51094812852502',
         preco: 'R$ 419,90',
         preco_des: null,
-        parcelas: '4x de R$ 104,98'
+        parcelas: '4x de R$ 104,98',
+        url: '/products/travesseiro-snow?preview_pricing_test'
       },
       'kit-2-travesseiros-iws-snow': {
         variant: '10441630679318',
-        preco: 'R$ 752,80',
-        preco_des: 'R$376,40 cada',
-        parcelas: '4x de R$ 188,20'
+        preco: 'R$ 754,00',
+        preco_des: 'R$377,00 cada',
+        parcelas: '4x de R$ 188,50',
+        url: '/products/jwz8zmh3m1f0mqtlqwywxz1rnqegmf6b6mnjtyxdavzoxgtu2xlrnlait3t4zgz33zbw?preview_pricing_test'
       },
       'kit-4-travesseiros-iws-snow': {
         variant: '51109274288406',
-        preco: 'R$ 1.416,80',
-        preco_des: 'R$354,20 cada',
-        parcelas: '4x de R$ 354,20'
+        preco: 'R$ 1.428,00',
+        preco_des: 'R$357,00 cada',
+        parcelas: '4x de R$ 357,00',
+        url: '/products/wmyasm2y8-5sj9muhwcn4ikkum4wwvtraik-luycoejamwocvuldedqircyoery9j-nming5hxpv3sbr?preview_pricing_test'
       }
     };
 
@@ -379,7 +382,7 @@
 
         var link = card.querySelector('.pav-prd-link');
         if (link) {
-          link.href = '/products/' + handle + '?variant=' + config.variant;
+          link.href = config.url || ('/products/' + handle + '?variant=' + config.variant);
         }
 
         var elPreco = card.querySelector('.pav-price');
