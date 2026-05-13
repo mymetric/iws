@@ -15,6 +15,7 @@ Listados em `ACTIVE_TESTS` no final do arquivo. Cada entrada roda automaticament
 | ID do experimento | Nome | Path | Variante challenger |
 |---|---|---|---|
 | `oYzpu5HVygUoyj1o` | Botão de Compra focado no Benefício | `/products/` | `ctaBeneficio` |
+| `PbdeD1YlOOcWv4dc` | Checklist de Benefícios — Snow | `snow` | `checklistBeneficios` |
 
 **Para pausar** um teste: remova a entrada do array `ACTIVE_TESTS`, commit, push, [purge](#purge-cache) — propaga em segundos.
 **Para adicionar** um teste: implemente a função `challenger`, adicione uma entrada no array com um `id` novo (qualquer string única).

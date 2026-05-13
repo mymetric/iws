@@ -536,6 +536,12 @@
       pathContains: '/products/',
       challenger: ctaBeneficio,
     },
+    {
+      id: 'PbdeD1YlOOcWv4dc',
+      name: 'Checklist de Benefícios — Snow',
+      pathContains: 'snow',
+      challenger: checklistBeneficios,
+    },
   ];
 
   function autoLaunch() {
