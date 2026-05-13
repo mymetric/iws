@@ -27,6 +27,16 @@
     }, 100);
   }
 
+  // Utilitário: executa o callback apenas em páginas de produto
+  // (URL contém "/products/"). Retorna true se executou.
+  function onProductPage(callback) {
+    if ((window.location.pathname || '').indexOf('/products/') !== -1) {
+      callback();
+      return true;
+    }
+    return false;
+  }
+
   // =============================================================
   // TESTE 1: CTA com Benefício + Urgência
   // =============================================================
@@ -412,5 +422,6 @@
     socialProof: socialProof,
     checklistBeneficios: checklistBeneficios,
     pricingTest: pricingTest,
+    onProductPage: onProductPage,
   };
 })();
