@@ -6,23 +6,53 @@ Scripts de testes A/B para a página [Travesseiro IWS Snow](https://www.iwannasl
 
 ## Como funciona
 
-O arquivo `iws-ab-tests.js` expõe 3 funções no objeto global `window.IWS_AB`. Cada função ativa um teste independente na página do produto.
+O `iws-ab-tests.js` é carregado **direto no tema** (`<script src="https://cdn.jsdelivr.net/gh/mymetric/iws@main/iws-ab-tests.js"></script>` no `<head>` do `theme.liquid`). Ele faz tudo sozinho — bucketing, sorteio 50/50, cookies sticky e impressão no `dataLayer` — **sem depender do GTM nem do `experiment.js` externo**.
 
-| Função | Teste |
+### Testes com auto-launch
+
+Listados em `ACTIVE_TESTS` no final do arquivo. Cada entrada roda automaticamente quando o pathname casa com `pathContains`. Hoje:
+
+| ID do experimento | Nome | Path | Variante challenger |
+|---|---|---|---|
+| `oYzpu5HVygUoyj1o` | Botão de Compra focado no Benefício | `/products/` | `ctaBeneficio` |
+
+**Para pausar** um teste: remova a entrada do array `ACTIVE_TESTS`, commit, push, [purge](#purge-cache) — propaga em segundos.
+**Para adicionar** um teste: implemente a função `challenger`, adicione uma entrada no array com um `id` novo (qualquer string única).
+
+### API pública (`window.IWS_AB`)
+
+| Função | Uso |
 |---|---|
 | `IWS_AB.ctaBeneficio()` | CTA orientado a benefício + urgência |
 | `IWS_AB.socialProof()` | Feed de compras recentes + social proof |
 | `IWS_AB.checklistBeneficios()` | Checklist de benefícios acima do CTA |
 | `IWS_AB.pricingTest()` | Preços de controle (sem desconto) + redirects de kits |
-| `IWS_AB.onProductPage(cb)` | Helper: executa `cb` só se a URL contiver `/products/` |
+| `IWS_AB.onProductPage(cb)` | Executa `cb` só se a URL contiver `/products/` |
+| `IWS_AB.runExperiment(id, name, challengerFn, originalFn?)` | Roda um experimento 50/50 com cookie sticky e impressão no dataLayer |
+
+### Cookies setados
+
+- `mm_exp_bucket` — bucket 0..10 sticky (365 dias). Compatível com o que o `experiment.js` da MyMetric setava.
+- `mm_exp_id_<experimentId>` — `"<id>.<variant>"` sticky (365 dias). Ex.: `mm_exp_id_oYzpu5HVygUoyj1o=oYzpu5HVygUoyj1o.1`.
+
+### Evento de impressão
+
+Em cada pageview onde um experimento é executado, é enviado um evento `experiment_impression` via `gtag` (se existir) ou `dataLayer.push`:
+
+```js
+{
+  event: 'experiment_impression',
+  experiment_id: 'oYzpu5HVygUoyj1o',
+  experiment_variant: '0' | '1',
+  experiment_name: 'Botão de Compra focado no Benefício'
+}
+```
 
 ---
 
-## Implementação via GTM + jsDelivr
+## Uso manual (legado / GTM)
 
-Crie **uma única Tag HTML Personalizado** no GTM. O script é carregado dinamicamente e executa o teste após o carregamento — sem necessidade de sequenciamento de tags.
-
-**Acionador (Trigger):** `Page View` filtrado para páginas que contenham `/products/travesseiro-snow` na URL.
+Se ainda quiser disparar testes via GTM em vez de auto-launch, monte uma Tag HTML Personalizado. O `iws-ab-tests.js` já está no tema, então `IWS_AB` está disponível:
 
 ---
 
@@ -105,67 +135,33 @@ Para rodar mais de um teste ao mesmo tempo, chame múltiplas funções no `onloa
 
 ---
 
-## Estrutura do GTM (resumo)
+## Validação no navegador
 
-```
-Tag: [HTML Personalizado] AB Test — Travesseiro Snow
-  └─ Carrega iws-ab-tests.js dinamicamente
-  └─ Executa a função desejada no onload
-  └─ Trigger: Page View — URL contém "/products/travesseiro-snow"
+Abra qualquer URL `/products/*` em aba anônima e no Console:
+
+```js
+// Cookies setados pelo runner
+document.cookie.split('; ').filter(c => c.indexOf('mm_exp') === 0)
+// → ["mm_exp_bucket=7", "mm_exp_id_oYzpu5HVygUoyj1o=oYzpu5HVygUoyj1o.1"]
+
+// Evento de impressão
+dataLayer.filter(e => e.event === 'experiment_impression')
 ```
 
-Uma única tag. Sem sequenciamento.
+Se quiser forçar a variante para inspeção visual, edite o cookie manualmente
+(`mm_exp_id_oYzpu5HVygUoyj1o=oYzpu5HVygUoyj1o.0` ou `...1`) e recarregue.
 
 ---
 
-## Rodar em todas as páginas de produto
+<a id="purge-cache"></a>
+## Purge do cache jsDelivr
 
-Quando o experimento deve cobrir qualquer URL de produto (`/products/*`) e não
-um handle específico, gate a chamada com `IWS_AB.onProductPage` para evitar
-sujar a amostra do experimento com pageviews fora de produto (home, coleção,
-carrinho, etc.).
+Após cada push em `main`, o jsDelivr ainda serve a versão cacheada por algum
+tempo. Force a propagação imediata acessando:
 
-Exemplo dentro do fluxo do `experiment.js` da MyMetric:
-
-```html
-<script type="text/javascript">
-
-  var mmtr_exp = document.createElement("script");
-  mmtr_exp.src = "https://cdn.jsdelivr.net/gh/mymetric/scripts@main/experiment.js";
-  mmtr_exp.onload = function() {
-    var bucket = bucket_sort();
-    new_experiment("fqTsL2RXwTR3SH9f", "Botão de Compra focado no Benefício", experiment_changes);
-  };
-
-  // Só carrega o experiment.js em páginas de produto
-  if (window.location.pathname.indexOf('/products/') !== -1) {
-    document.head.appendChild(mmtr_exp);
-  }
-
-  function experiment_original(exp_id) {}
-
-  function experiment_changes(exp_id) {
-    var s = document.createElement('script');
-    s.src = 'https://cdn.jsdelivr.net/gh/mymetric/iws@main/iws-ab-tests.js';
-    s.onload = function() {
-      // Defesa em profundidade: garante que só roda em página de produto
-      IWS_AB.onProductPage(function() { IWS_AB.ctaBeneficio(); });
-    };
-    document.head.appendChild(s);
-  }
-
-</script>
+```
+https://purge.jsdelivr.net/gh/mymetric/iws@main/iws-ab-tests.js
 ```
 
-A checagem na injeção do `experiment.js` evita que pageviews irrelevantes entrem
-no bucket; a checagem no `onload` do `iws-ab-tests.js` é defesa em profundidade
-caso o snippet seja reutilizado em outra tag/trigger.
-
----
-
-## Dicas
-
-- **Rode apenas 1 teste por vez** para não poluir os resultados.
-- Use o **Preview Mode** do GTM para validar antes de publicar.
-- Purge do cache jsDelivr: `https://purge.jsdelivr.net/gh/mymetric/iws@main/iws-ab-tests.js`
-- Para fixar uma versão específica, use commit hash: `https://cdn.jsdelivr.net/gh/mymetric/iws@COMMIT_HASH/iws-ab-tests.js`
+Para fixar uma versão específica em vez de seguir `main`, use o commit hash:
+`https://cdn.jsdelivr.net/gh/mymetric/iws@COMMIT_HASH/iws-ab-tests.js`
