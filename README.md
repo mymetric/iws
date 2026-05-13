@@ -13,6 +13,8 @@ O arquivo `iws-ab-tests.js` expõe 3 funções no objeto global `window.IWS_AB`.
 | `IWS_AB.ctaBeneficio()` | CTA orientado a benefício + urgência |
 | `IWS_AB.socialProof()` | Feed de compras recentes + social proof |
 | `IWS_AB.checklistBeneficios()` | Checklist de benefícios acima do CTA |
+| `IWS_AB.pricingTest()` | Preços de controle (sem desconto) + redirects de kits |
+| `IWS_AB.onProductPage(cb)` | Helper: executa `cb` só se a URL contiver `/products/` |
 
 ---
 
@@ -113,6 +115,51 @@ Tag: [HTML Personalizado] AB Test — Travesseiro Snow
 ```
 
 Uma única tag. Sem sequenciamento.
+
+---
+
+## Rodar em todas as páginas de produto
+
+Quando o experimento deve cobrir qualquer URL de produto (`/products/*`) e não
+um handle específico, gate a chamada com `IWS_AB.onProductPage` para evitar
+sujar a amostra do experimento com pageviews fora de produto (home, coleção,
+carrinho, etc.).
+
+Exemplo dentro do fluxo do `experiment.js` da MyMetric:
+
+```html
+<script type="text/javascript">
+
+  var mmtr_exp = document.createElement("script");
+  mmtr_exp.src = "https://cdn.jsdelivr.net/gh/mymetric/scripts@main/experiment.js";
+  mmtr_exp.onload = function() {
+    var bucket = bucket_sort();
+    new_experiment("fqTsL2RXwTR3SH9f", "Botão de Compra focado no Benefício", experiment_changes);
+  };
+
+  // Só carrega o experiment.js em páginas de produto
+  if (window.location.pathname.indexOf('/products/') !== -1) {
+    document.head.appendChild(mmtr_exp);
+  }
+
+  function experiment_original(exp_id) {}
+
+  function experiment_changes(exp_id) {
+    var s = document.createElement('script');
+    s.src = 'https://cdn.jsdelivr.net/gh/mymetric/iws@main/iws-ab-tests.js';
+    s.onload = function() {
+      // Defesa em profundidade: garante que só roda em página de produto
+      IWS_AB.onProductPage(function() { IWS_AB.ctaBeneficio(); });
+    };
+    document.head.appendChild(s);
+  }
+
+</script>
+```
+
+A checagem na injeção do `experiment.js` evita que pageviews irrelevantes entrem
+no bucket; a checagem no `onload` do `iws-ab-tests.js` é defesa em profundidade
+caso o snippet seja reutilizado em outra tag/trigger.
 
 ---
 
