@@ -2,11 +2,16 @@
  * IWS AB Tests — Travesseiro Snow
  * https://www.iwannasleep.com.br/products/travesseiro-snow
  *
- * Uso via jsDelivr + GTM:
+ * Carregado diretamente pelo tema; gerencia bucketing, sorteio de variante,
+ * cookies e execução do teste sem depender de GTM ou do experiment.js externo.
+ *
+ * Testes ativos com auto-launch estão declarados em ACTIVE_TESTS (no final).
+ * Os demais helpers continuam expostos em window.IWS_AB para uso manual:
  *   window.IWS_AB.ctaBeneficio();
  *   window.IWS_AB.socialProof();
  *   window.IWS_AB.checklistBeneficios();
  *   window.IWS_AB.pricingTest();
+ *   window.IWS_AB.runExperiment(id, name, challengerFn);
  */
 
 (function () {
@@ -35,6 +40,98 @@
       return true;
     }
     return false;
+  }
+
+  // =============================================================
+  // Bucketing + sorteio de variante (substitui experiment.js)
+  // Compatível com os cookies setados anteriormente pelo
+  // experiment.js da MyMetric:
+  //   mm_exp_bucket             — bucket 0..10 (sticky por 365 dias)
+  //   mm_exp_id_<experimentId>  — "<id>.<variant>" (sticky por 365 dias)
+  // =============================================================
+  function setCookie(name, value, days) {
+    var d = new Date();
+    d.setTime(d.getTime() + days * 24 * 60 * 60 * 1000);
+    document.cookie =
+      name + '=' + value + ';expires=' + d.toUTCString() + ';path=/';
+  }
+
+  function getCookie(name) {
+    var parts = document.cookie ? document.cookie.split('; ') : [];
+    for (var i = 0; i < parts.length; i++) {
+      var kv = parts[i].split('=');
+      if (kv[0] === name) return kv[1];
+    }
+    return '';
+  }
+
+  function bucketSort() {
+    var bucket = parseInt(getCookie('mm_exp_bucket'), 10);
+    if (!bucket && bucket !== 0) {
+      bucket = Math.round(Math.random() * 10);
+      setCookie('mm_exp_bucket', String(bucket), 365);
+    }
+    return bucket;
+  }
+
+  function pushImpression(id, name, variant) {
+    var payload = {
+      event: 'experiment_impression',
+      experiment_id: id,
+      experiment_variant: variant,
+      experiment_name: name,
+    };
+    if (typeof window.gtag === 'function') {
+      window.gtag('event', 'experiment_impression', {
+        experiment_id: id,
+        experiment_variant: variant,
+        experiment_name: name,
+      });
+    } else {
+      window.dataLayer = window.dataLayer || [];
+      window.dataLayer.push(payload);
+    }
+  }
+
+  // IDs de experimentos já executados nesta pageview, para evitar
+  // dupla impressão se runExperiment for chamado mais de uma vez.
+  var _ran = {};
+
+  // Roda um experimento 50/50. Mantém variant sticky via cookie.
+  // - challengerFn: executa quando variant == 1
+  // - originalFn (opcional): executa quando variant == 0 (default: noop)
+  function runExperiment(id, name, challengerFn, originalFn) {
+    if (!id || typeof challengerFn !== 'function') return;
+    if (_ran[id]) return;
+    _ran[id] = true;
+
+    // Garante bucket sticky (mantém compatibilidade com dashboards).
+    bucketSort();
+
+    var cookieName = 'mm_exp_id_' + id;
+    var current = getCookie(cookieName);
+    var variant;
+
+    if (current && current.indexOf(id + '.') === 0) {
+      variant = current.split('.')[1];
+    } else {
+      variant = Math.random() * 10 <= 5 ? '0' : '1';
+      setCookie(cookieName, id + '.' + variant, 365);
+    }
+
+    pushImpression(id, name, variant);
+
+    try {
+      if (variant === '0') {
+        if (typeof originalFn === 'function') originalFn(id);
+      } else {
+        challengerFn(id);
+      }
+    } catch (e) {
+      if (window.console && console.error) {
+        console.error('[IWS_AB] experiment ' + id + ' failed:', e);
+      }
+    }
   }
 
   // =============================================================
@@ -423,5 +520,37 @@
     checklistBeneficios: checklistBeneficios,
     pricingTest: pricingTest,
     onProductPage: onProductPage,
+    runExperiment: runExperiment,
   };
+
+  // =============================================================
+  // Auto-launch de testes ativos
+  // Cada entrada roda automaticamente quando o arquivo é carregado
+  // numa URL cujo pathname contenha `pathContains`. Para pausar um
+  // teste, remova a entrada (jsDelivr purge propaga em segundos).
+  // =============================================================
+  var ACTIVE_TESTS = [
+    {
+      id: 'oYzpu5HVygUoyj1o',
+      name: 'Botão de Compra focado no Benefício',
+      pathContains: '/products/',
+      challenger: ctaBeneficio,
+    },
+  ];
+
+  function autoLaunch() {
+    var path = window.location.pathname || '';
+    for (var i = 0; i < ACTIVE_TESTS.length; i++) {
+      var t = ACTIVE_TESTS[i];
+      if (path.indexOf(t.pathContains) !== -1) {
+        runExperiment(t.id, t.name, t.challenger);
+      }
+    }
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', autoLaunch);
+  } else {
+    autoLaunch();
+  }
 })();
