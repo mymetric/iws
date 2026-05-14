@@ -81,16 +81,35 @@
       experiment_variant: variant,
       experiment_name: name,
     };
-    if (typeof window.gtag === 'function') {
-      window.gtag('event', 'experiment_impression', {
-        experiment_id: id,
-        experiment_variant: variant,
-        experiment_name: name,
-      });
-    } else {
-      window.dataLayer = window.dataLayer || [];
-      window.dataLayer.push(payload);
+
+    function sendViaGtag() {
+      if (typeof window.gtag === 'function') {
+        window.gtag('event', 'experiment_impression', {
+          experiment_id: id,
+          experiment_variant: variant,
+          experiment_name: name,
+        });
+        return true;
+      }
+      return false;
     }
+
+    // Tenta imediatamente — caso comum quando gtag.js já carregou.
+    if (sendViaGtag()) return;
+
+    // Poll até gtag aparecer (até 5s: 50 tentativas de 100ms). Se não
+    // aparecer, cai no dataLayer.push como último recurso (só chega no
+    // GA4 se houver trigger no GTM para `experiment_impression`).
+    var tries = 0;
+    var iv = setInterval(function () {
+      if (sendViaGtag()) {
+        clearInterval(iv);
+      } else if (++tries >= 50) {
+        clearInterval(iv);
+        window.dataLayer = window.dataLayer || [];
+        window.dataLayer.push(payload);
+      }
+    }, 100);
   }
 
   // IDs de experimentos já executados nesta pageview, para evitar
