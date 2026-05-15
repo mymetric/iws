@@ -81,67 +81,43 @@
   }
 
   function pushImpression(id, name, variant) {
-    var sent = false;
-    var payload = {
+    // Envio em paralelo nos dois caminhos disponíveis, ambos síncronos:
+    //
+    //   1) window.gtag — só existe se gtag.js foi carregado fora do Web
+    //      Pixel sandbox (instalação manual de GA4 no theme.liquid).
+    //      No Shopify nativo (Customer Events) gtag NÃO fica exposto na
+    //      window principal, então essa rota geralmente é no-op.
+    //
+    //   2) dataLayer.push — captura no GTM via trigger "Custom Event:
+    //      experiment_impression". REQUER uma tag GA4 Event configurada
+    //      no GTM ouvindo esse evento. Sem isso, o push some no vácuo.
+    //
+    // Mandamos nos dois ao mesmo tempo, marcando o caminho usado em
+    // `ab_delivery` para diagnóstico no BQ. Eventual duplicação (raro:
+    // só se ambos os caminhos estiverem ativos no mesmo navegador) é
+    // resolvida no dbt via row_number partition by (user_pseudo_id,
+    // ga_session_id), que já é como `iwannasleep_experiment_impressions`
+    // deduplifica hoje.
+
+    // Rota 1: gtag direto. Se não estiver definida, no-op silencioso.
+    if (typeof window.gtag === 'function') {
+      window.gtag('event', 'experiment_impression', {
+        experiment_id: id,
+        experiment_variant: variant,
+        experiment_name: name,
+        ab_delivery: 'gtag',
+      });
+    }
+
+    // Rota 2: dataLayer.push. Sempre executa. É síncrono — sobrevive a
+    // bounces e unloads imediatos sem precisar de listeners de pagehide.
+    window.dataLayer = window.dataLayer || [];
+    window.dataLayer.push({
       event: 'experiment_impression',
       experiment_id: id,
       experiment_variant: variant,
       experiment_name: name,
-    };
-
-    function sendViaGtag() {
-      if (sent) return true;
-      if (typeof window.gtag === 'function') {
-        window.gtag('event', 'experiment_impression', {
-          experiment_id: id,
-          experiment_variant: variant,
-          experiment_name: name,
-        });
-        sent = true;
-        return true;
-      }
-      return false;
-    }
-
-    function sendViaDataLayer() {
-      if (sent) return;
-      window.dataLayer = window.dataLayer || [];
-      window.dataLayer.push(payload);
-      sent = true;
-    }
-
-    // Tenta imediatamente — caso comum quando gtag.js já carregou.
-    if (sendViaGtag()) return;
-
-    // Poll até gtag aparecer (até 30s: 300 tentativas de 100ms). Em
-    // mobile/conexão lenta o GA4 via GTM costuma levar 2-10s para
-    // expor window.gtag; 5s era curto demais e perdia impressões.
-    var tries = 0;
-    var iv = setInterval(function () {
-      if (sendViaGtag()) {
-        clearInterval(iv);
-      } else if (++tries >= 300) {
-        clearInterval(iv);
-        sendViaDataLayer();
-      }
-    }, 100);
-
-    // Cinto de segurança para sessões curtas: se a aba for fechada,
-    // navegada ou ocultada antes do polling acabar, força envio.
-    // Tenta gtag (caso tenha aparecido entre dois ticks do interval);
-    // senão cai no dataLayer.push síncrono.
-    function flushOnHide() {
-      if (sent) return;
-      if (!sendViaGtag()) sendViaDataLayer();
-      clearInterval(iv);
-    }
-    // pagehide cobre fechamento de aba e navegação; o `once` evita
-    // re-disparo em bfcache restore.
-    window.addEventListener('pagehide', flushOnHide, { once: true });
-    // Safari iOS dispara visibilitychange='hidden' antes de pagehide
-    // em swipe-back e troca de app; capturamos os dois.
-    document.addEventListener('visibilitychange', function () {
-      if (document.visibilityState === 'hidden') flushOnHide();
+      ab_delivery: 'dl',
     });
   }
 
