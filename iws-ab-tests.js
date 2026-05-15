@@ -81,6 +81,7 @@
   }
 
   function pushImpression(id, name, variant) {
+    var sent = false;
     var payload = {
       event: 'experiment_impression',
       experiment_id: id,
@@ -89,33 +90,59 @@
     };
 
     function sendViaGtag() {
+      if (sent) return true;
       if (typeof window.gtag === 'function') {
         window.gtag('event', 'experiment_impression', {
           experiment_id: id,
           experiment_variant: variant,
           experiment_name: name,
         });
+        sent = true;
         return true;
       }
       return false;
     }
 
+    function sendViaDataLayer() {
+      if (sent) return;
+      window.dataLayer = window.dataLayer || [];
+      window.dataLayer.push(payload);
+      sent = true;
+    }
+
     // Tenta imediatamente — caso comum quando gtag.js já carregou.
     if (sendViaGtag()) return;
 
-    // Poll até gtag aparecer (até 5s: 50 tentativas de 100ms). Se não
-    // aparecer, cai no dataLayer.push como último recurso (só chega no
-    // GA4 se houver trigger no GTM para `experiment_impression`).
+    // Poll até gtag aparecer (até 30s: 300 tentativas de 100ms). Em
+    // mobile/conexão lenta o GA4 via GTM costuma levar 2-10s para
+    // expor window.gtag; 5s era curto demais e perdia impressões.
     var tries = 0;
     var iv = setInterval(function () {
       if (sendViaGtag()) {
         clearInterval(iv);
-      } else if (++tries >= 50) {
+      } else if (++tries >= 300) {
         clearInterval(iv);
-        window.dataLayer = window.dataLayer || [];
-        window.dataLayer.push(payload);
+        sendViaDataLayer();
       }
     }, 100);
+
+    // Cinto de segurança para sessões curtas: se a aba for fechada,
+    // navegada ou ocultada antes do polling acabar, força envio.
+    // Tenta gtag (caso tenha aparecido entre dois ticks do interval);
+    // senão cai no dataLayer.push síncrono.
+    function flushOnHide() {
+      if (sent) return;
+      if (!sendViaGtag()) sendViaDataLayer();
+      clearInterval(iv);
+    }
+    // pagehide cobre fechamento de aba e navegação; o `once` evita
+    // re-disparo em bfcache restore.
+    window.addEventListener('pagehide', flushOnHide, { once: true });
+    // Safari iOS dispara visibilitychange='hidden' antes de pagehide
+    // em swipe-back e troca de app; capturamos os dois.
+    document.addEventListener('visibilitychange', function () {
+      if (document.visibilityState === 'hidden') flushOnHide();
+    });
   }
 
   // IDs de experimentos já executados nesta pageview, para evitar
