@@ -17,6 +17,12 @@
 (function () {
   'use strict';
 
+  // Idempotency guard — o tema/GTM pode carregar este script por mais de
+  // uma rota (tag direta, callback de experiment_changes, etc.). Sem isso
+  // cada load extra duplicaria impressões e re-aplicaria challengers.
+  if (window.__IWS_AB_loaded) return;
+  window.__IWS_AB_loaded = true;
+
   // Utilitário: aguarda elemento no DOM e executa callback
   function waitFor(selector, callback, maxAttempts) {
     maxAttempts = maxAttempts || 50;
