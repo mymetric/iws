@@ -23,6 +23,43 @@
   if (window.__IWS_AB_loaded) return;
   window.__IWS_AB_loaded = true;
 
+  // =============================================================
+  // Bootstrap mínimo do GA4
+  // Garante disponibilidade imediata do gtag()
+  // sem disparar page_view duplicado.
+  // =============================================================
+  (function loadGA4() {
+
+    // Se já existir gtag, não faz nada.
+    if (window.gtag) return;
+
+    window.dataLayer = window.dataLayer || [];
+
+    function gtag() {
+      window.dataLayer.push(arguments);
+    }
+
+    window.gtag = gtag;
+
+    gtag('js', new Date());
+
+    // IMPORTANTE:
+    // Evita page_view duplicado.
+    gtag('config', 'G-RZ02P85F62', {
+      send_page_view: false
+    });
+
+    var script = document.createElement('script');
+    script.async = true;
+    script.src =
+      'https://www.googletagmanager.com/gtag/js?id=G-RZ02P85F62';
+
+    document.head.appendChild(script);
+
+  })();
+
+  // =============================================================
+  
   // Utilitário: aguarda elemento no DOM e executa callback
   function waitFor(selector, callback, maxAttempts) {
     maxAttempts = maxAttempts || 50;
