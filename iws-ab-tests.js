@@ -139,6 +139,7 @@
     // Rota 1: gtag direto. Se não estiver definida, no-op silencioso.
     if (typeof window.gtag === 'function') {
       window.gtag('event', 'experiment_impression', {
+        send_to: 'G-RZ02P85F62',
         experiment_id: id,
         experiment_variant: variant,
         experiment_name: name,
