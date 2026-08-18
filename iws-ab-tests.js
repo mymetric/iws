@@ -595,20 +595,7 @@
   // numa URL cujo pathname contenha `pathContains`. Para pausar um
   // teste, remova a entrada (jsDelivr purge propaga em segundos).
   // =============================================================
-  var ACTIVE_TESTS = [
-    {
-      id: 'oYzpu5HVygUoyj1o',
-      name: 'Botão de Compra focado no Benefício',
-      pathContains: '/products/',
-      challenger: ctaBeneficio,
-    },
-    {
-      id: 'PbdeD1YlOOcWv4dc',
-      name: 'Checklist de Benefícios — Snow',
-      pathContains: 'snow',
-      challenger: checklistBeneficios,
-    },
-  ];
+  var ACTIVE_TESTS = [];
 
   function autoLaunch() {
     var path = window.location.pathname || '';
